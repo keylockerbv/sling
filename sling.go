@@ -1,6 +1,7 @@
 package sling
 
 import (
+	"compress/zlib"
 	"encoding/base64"
 	"encoding/json"
 	"io"
@@ -386,5 +387,17 @@ func decodeResponseJSON(resp *http.Response, successV, failureV interface{}) err
 // to by v.
 // Caller must provide a non-nil v and close the resp.Body.
 func decodeResponseBodyJSON(resp *http.Response, v interface{}) error {
-	return json.NewDecoder(resp.Body).Decode(v)
+	var reader io.Reader
+	switch resp.Header.Get("Content-Encoding") {
+	case "deflate":
+		r, err := zlib.NewReader(resp.Body)
+		if err != nil {
+			return err
+		}
+		reader = r
+	default:
+		reader = resp.Body
+	}
+
+	return json.NewDecoder(reader).Decode(v)
 }
